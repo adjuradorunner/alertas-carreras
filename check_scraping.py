@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 import re
+from datetime import datetime
 
 PUSHOVER_USER = os.environ.get("PUSHOVER_USER")
 PUSHOVER_TOKEN = os.environ.get("PUSHOVER_TOKEN")
@@ -112,8 +113,6 @@ def main():
 
     # Guardamos estado de salud
     nuevos_estados["salud"] = estado_salud
-
-   from datetime import datetime
 
 now = datetime.now().strftime("%d %B %Y - %H:%M")
 
