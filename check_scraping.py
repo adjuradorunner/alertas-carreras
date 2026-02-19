@@ -113,6 +113,21 @@ def main():
     # Guardamos estado de salud también
     nuevos_estados["salud"] = estado_salud
 
+    # Generar dashboard Markdown
+with open("STATUS.md", "w", encoding="utf-8") as f:
+    f.write("# 🏃 Estado Medias Maratón\n\n")
+    f.write("## Scraping actual\n\n")
+
+    for nombre in CARRERAS.keys():
+        datos = nuevos_estados.get(nombre, {})
+        estado = datos.get("estado", "desconocido")
+        ano = datos.get("ano", "-")
+
+        if estado == "desconocido":
+            f.write(f"- {nombre} → Sin inscripciones activas\n")
+        else:
+            f.write(f"- {nombre} → {estado.capitalize()} ({ano})\n")
+
     guardar_estados(nuevos_estados)
 
 if __name__ == "__main__":
