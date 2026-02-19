@@ -27,24 +27,31 @@ def enviar_notificacion(mensaje):
         },
     )
 
-def obtener_texto(url):
+def obtener_texto(url, nombre, estado_salud):
     try:
         response = requests.get(url, timeout=10)
+
         if response.status_code != 200:
-            enviar_notificacion(f"⚠️ Error HTTP {response.status_code} en {url}")
-            return ""
+            estado_salud[nombre] = estado_salud.get(nombre, 0) + 1
+            return None
 
         soup = BeautifulSoup(response.text, "html.parser")
         texto = soup.get_text().lower()
 
         if len(texto) < 500:
-            enviar_notificacion(f"⚠️ Posible cambio de estructura en {url}")
+            estado_salud[nombre] = estado_salud.get(nombre, 0) + 1
+            return None
 
+        # Si llega aquí, la web funciona
+        if estado_salud.get(nombre, 0) >= 3:
+            enviar_notificacion(f"✅ {nombre} se ha recuperado correctamente")
+
+        estado_salud[nombre] = 0
         return texto
 
-    except Exception as e:
-        enviar_notificacion(f"❌ Error conexión en {url}: {e}")
-        return ""
+    except:
+        estado_salud[nombre] = estado_salud.get(nombre, 0) + 1
+        return None
 
 def detectar_estado(texto):
     if "abiertas" in texto:
@@ -72,8 +79,18 @@ def main():
     estados_anteriores = cargar_estados()
     nuevos_estados = {}
 
+    # Recuperamos estado de salud anterior
+    estado_salud = estados_anteriores.get("salud", {})
+
     for nombre, url in CARRERAS.items():
-        texto = obtener_texto(url)
+        texto = obtener_texto(url, nombre, estado_salud)
+
+        # Si la web falla
+        if texto is None:
+            if estado_salud.get(nombre, 0) == 3:
+                enviar_notificacion(f"⚠️ {nombre} lleva 3 ciclos fallando")
+            continue
+
         estado_actual = detectar_estado(texto)
         ano_actual = detectar_ano(texto)
 
@@ -92,6 +109,9 @@ def main():
             "estado": estado_actual,
             "ano": ano_actual
         }
+
+    # Guardamos estado de salud también
+    nuevos_estados["salud"] = estado_salud
 
     guardar_estados(nuevos_estados)
 
