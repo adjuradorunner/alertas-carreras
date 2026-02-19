@@ -2,12 +2,35 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import re
 
-URL = "https://www.mediomaratondesevilla.es/web-evento/11054-mms26"
-STATE_FILE = "estado_sevilla.json"
+PUSHOVER_USER = os.environ.get("PUSHOVER_USER")
+PUSHOVER_TOKEN = os.environ.get("PUSHOVER_TOKEN")
 
-PUSHOVER_USER = "uhb1bt1dzar4f2ox5am3cy33v4jyvg"
-PUSHOVER_TOKEN = "afifdmbic9fqw29dkjxpjkn77do4q9"
+STATE_FILE = "estados.json"
+
+CARRERAS = {
+    "Granada": {
+        "url": "https://mediamaraton.granada.org/",
+        "tipo": "estado"
+    },
+    "Granollers": {
+        "url": "https://www.lamitja.cat/la-mitja/",
+        "tipo": "estado"
+    },
+    "Malaga": {
+        "url": "https://www.mediamaratonmalaga.com/web-evento/11205-evento",
+        "tipo": "estado"
+    },
+    "Cordoba": {
+        "url": "https://mediamaratoncordoba.es/",
+        "tipo": "inscripciones_aparecen"
+    },
+    "Barcelona": {
+        "url": "https://www.mitjamarato.barcelona/es/",
+        "tipo": "inscripciones_aparecen"
+    }
+}
 
 def enviar_notificacion(mensaje):
     requests.post(
@@ -19,45 +42,87 @@ def enviar_notificacion(mensaje):
         },
     )
 
-def obtener_estado():
-    response = requests.get(URL)
-    soup = BeautifulSoup(response.text, "html.parser")
-    texto = soup.get_text().lower()
+def obtener_texto(url):
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+        return soup.get_text().lower()
+    except:
+        return ""
 
+def detectar_estado(texto):
     if "abiertas" in texto:
         return "abiertas"
-    elif "cerradas" in texto:
+    elif "agotadas" in texto or "cerradas" in texto or "tancades" in texto:
         return "cerradas"
     else:
         return "desconocido"
 
-def cargar_estado_anterior():
+def detectar_ano(texto):
+    anos = re.findall(r"20\d{2}", texto)
+    return max(anos) if anos else None
+
+def cargar_estados():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
-            return json.load(f).get("estado")
-    return None
+            return json.load(f)
+    return {}
 
-def guardar_estado(estado):
+def guardar_estados(estados):
     with open(STATE_FILE, "w") as f:
-        json.dump({"estado": estado}, f)
+        json.dump(estados, f)
 
 def main():
-    estado_actual = obtener_estado()
-    estado_anterior = cargar_estado_anterior()
+    estados_anteriores = cargar_estados()
+    nuevos_estados = {}
 
-    print("Estado actual:", estado_actual)
+    for nombre, datos in CARRERAS.items():
+        url = datos["url"]
+        tipo = datos["tipo"]
 
-    if estado_anterior is None:
-        guardar_estado(estado_actual)
-        print("Estado inicial guardado.")
-        return
+        texto = obtener_texto(url)
+        estado_anterior = estados_anteriores.get(nombre, {})
 
-    if estado_actual != estado_anterior:
-        enviar_notificacion(f"Sevilla 21K cambió a: {estado_actual.upper()}")
-        guardar_estado(estado_actual)
-        print("Cambio detectado y notificación enviada.")
-    else:
-        print("Sin cambios.")
+        nuevo_estado = {}
+        mensaje = None
+
+        # --- Tipo estado clásico ---
+        if tipo == "estado":
+            estado_actual = detectar_estado(texto)
+            ano_actual = detectar_ano(texto)
+
+            nuevo_estado = {
+                "estado": estado_actual,
+                "ano": ano_actual
+            }
+
+            if estado_anterior:
+                if estado_actual != estado_anterior.get("estado"):
+                    mensaje = f"🔥 {nombre}: ahora las inscripciones están {estado_actual.upper()}"
+
+                elif ano_actual and ano_actual != estado_anterior.get("ano"):
+                    mensaje = f"📅 {nombre}: nueva edición detectada {ano_actual}"
+
+        # --- Tipo aparición de inscripciones ---
+        elif tipo == "inscripciones_aparecen":
+            aparecen = "inscrip" in texto
+
+            nuevo_estado = {
+                "inscripciones": aparecen
+            }
+
+            if estado_anterior:
+                if aparecen and not estado_anterior.get("inscripciones"):
+                    mensaje = f"🚀 {nombre}: ¡ha aparecido el apartado de INSCRIPCIONES!"
+
+        print(f"{nombre}: {nuevo_estado}")
+
+        if mensaje:
+            enviar_notificacion(mensaje)
+
+        nuevos_estados[nombre] = nuevo_estado
+
+    guardar_estados(nuevos_estados)
 
 if __name__ == "__main__":
     main()
