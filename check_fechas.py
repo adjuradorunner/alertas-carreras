@@ -82,26 +82,42 @@ def gestionar_behobia(estado):
 
 def gestionar_valencia(estado):
     url = "https://www.valenciaciudaddelrunning.com/medio/info-inscripciones-2026/"
-    response = requests.get(url, timeout=10)
-    soup = BeautifulSoup(response.text, "html.parser")
-    texto = soup.get_text().lower()
+    
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+        texto = soup.get_text().lower()
+    except Exception as e:
+        print("Error Valencia:", e)
+        return estado
 
-    # Extraer todas las fechas tipo "17 noviembre"
-    fechas = re.findall(r"(\d{1,2})\s+nov", texto)
+    # Detectar año real en la página
+    match_ano = re.search(r"inscripciones\s+(20\d{2})", texto)
+    if not match_ano:
+        print("No se detecta año en Valencia")
+        return estado
 
-    ano = ahora_espana().year + 1  # asumimos siguiente edición
+    ano = int(match_ano.group(1))
 
     ahora = ahora_espana()
 
+    # Extraer fechas tipo "17 nov"
+    fechas = re.findall(r"(\d{1,2})\s+nov", texto)
+
     for dia in fechas:
         fecha_evento = datetime(ano, 11, int(dia), 11, 0)
-
         clave = f"valencia_{fecha_evento.date()}"
 
         if ahora.date() == fecha_evento.date() and ahora.hour == 11:
             if not estado.get(clave):
-                enviar_notificacion(f"🔥 Hoy evento clave Valencia ({dia} Nov {ano})")
+                enviar_notificacion(f"🔥 Valencia {ano}: hoy evento clave ({dia} Nov)")
                 estado[clave] = True
+
+    # Detectar cambio de año
+    if estado.get("valencia_ano") and estado["valencia_ano"] != ano:
+        enviar_notificacion(f"📅 Valencia nueva edición detectada: {ano}")
+    
+    estado["valencia_ano"] = ano
 
     return estado
 
