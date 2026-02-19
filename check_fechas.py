@@ -129,12 +129,59 @@ def main():
     estado = cargar_estado()
     ahora = ahora_espana()
 
-    # Solo actuar a las 11:00
-    if ahora.hour != 11:
-        return
+    # Solo actuar a las 11:00 para notificaciones
+    if ahora.hour == 11:
+        estado = gestionar_behobia(estado)
+        estado = gestionar_valencia(estado)
 
-    estado = gestionar_behobia(estado)
-    estado = gestionar_valencia(estado)
+    # -------------------------
+    # Generar Dashboard
+    # -------------------------
+
+    with open("STATUS.md", "a", encoding="utf-8") as f:
+        f.write("\n\n## Próximas fechas clave\n\n")
+
+        # ---- Behobia ----
+        try:
+            url_b = "https://www.behobia-sansebastian.com/es/inscripciones/calendario"
+            response_b = requests.get(url_b, timeout=10)
+            soup_b = BeautifulSoup(response_b.text, "html.parser")
+            texto_b = soup_b.get_text().lower()
+
+            match_ano = re.search(r"calendario\s+(20\d{2})", texto_b)
+            ano_b = match_ano.group(1) if match_ano else "?"
+
+            fechas_b = re.findall(r"(\d{1,2})\s+(mar|abr|may)", texto_b)
+
+            if fechas_b:
+                dia, mes = fechas_b[0]
+                f.write(f"- Behobia → Próximo bloque: {dia} {mes} {ano_b}\n")
+            else:
+                f.write("- Behobia → No se detectan fechas\n")
+
+        except:
+            f.write("- Behobia → Error leyendo calendario\n")
+
+        # ---- Valencia ----
+        try:
+            url_v = "https://www.valenciaciudaddelrunning.com/medio/info-inscripciones-2026/"
+            response_v = requests.get(url_v, timeout=10)
+            soup_v = BeautifulSoup(response_v.text, "html.parser")
+            texto_v = soup_v.get_text().lower()
+
+            match_ano_v = re.search(r"inscripciones\s+(20\d{2})", texto_v)
+            ano_v = match_ano_v.group(1) if match_ano_v else "?"
+
+            fechas_v = re.findall(r"(\d{1,2})\s+nov", texto_v)
+
+            if fechas_v:
+                dia_v = fechas_v[0]
+                f.write(f"- Valencia → Próximo evento: {dia_v} Nov {ano_v}\n")
+            else:
+                f.write("- Valencia → No se detectan fechas\n")
+
+        except:
+            f.write("- Valencia → Error leyendo página\n")
 
     guardar_estado(estado)
 
