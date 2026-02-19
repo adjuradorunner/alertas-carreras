@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estado Medias Maratón</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            background-color: #f4f6f8;
+            padding: 20px;
+        }
+        h1 {
+            color: #222;
+        }
+        pre {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🏃 Estado Medias Maratón</h1>
+
+<pre id="content">Cargando estado...</pre>
+
+<script>
+fetch("STATUS.md")
+    .then(response => response.text())
+    .then(text => {
+        document.getElementById("content").innerText = text;
+    })
+    .catch(() => {
+        document.getElementById("content").innerText = "Error cargando estado.";
+    });
+</script>
+
+</body>
+</html>
