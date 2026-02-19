@@ -3,34 +3,25 @@ from bs4 import BeautifulSoup
 import json
 import os
 import re
+from datetime import datetime, timedelta
+import pytz
 
 PUSHOVER_USER = os.environ.get("PUSHOVER_USER")
 PUSHOVER_TOKEN = os.environ.get("PUSHOVER_TOKEN")
 
 STATE_FILE = "estados.json"
 
-CARRERAS = {
-    "Granada": {
-        "url": "https://mediamaraton.granada.org/",
-        "tipo": "estado"
-    },
-    "Granollers": {
-        "url": "https://www.lamitja.cat/la-mitja/",
-        "tipo": "estado"
-    },
-    "Malaga": {
-        "url": "https://www.mediamaratonmalaga.com/web-evento/11205-evento",
-        "tipo": "estado"
-    },
-    "Cordoba": {
-        "url": "https://mediamaratoncordoba.es/",
-        "tipo": "inscripciones_aparecen"
-    },
-    "Barcelona": {
-        "url": "https://www.mitjamarato.barcelona/es/",
-        "tipo": "inscripciones_aparecen"
-    }
-}
+# --- FECHAS OBJETIVO ---
+VALENCIA_FECHA = datetime(2026, 11, 1)  # Ajustable
+BEHOBIA_FECHA = datetime(2026, 4, 15)   # Ajustable
+
+def ahora_espana():
+    tz = pytz.timezone("Europe/Madrid")
+    return datetime.now(tz)
+
+def es_las_11():
+    ahora = ahora_espana()
+    return ahora.hour == 11
 
 def enviar_notificacion(mensaje):
     requests.post(
@@ -42,87 +33,47 @@ def enviar_notificacion(mensaje):
         },
     )
 
-def obtener_texto(url):
-    try:
-        response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text().lower()
-    except:
-        return ""
-
-def detectar_estado(texto):
-    if "abiertas" in texto:
-        return "abiertas"
-    elif "agotadas" in texto or "cerradas" in texto or "tancades" in texto:
-        return "cerradas"
-    else:
-        return "desconocido"
-
-def detectar_ano(texto):
-    anos = re.findall(r"20\d{2}", texto)
-    return max(anos) if anos else None
-
-def cargar_estados():
+def cargar_estado():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     return {}
 
-def guardar_estados(estados):
+def guardar_estado(data):
     with open(STATE_FILE, "w") as f:
-        json.dump(estados, f)
+        json.dump(data, f)
+
+def gestionar_fechas():
+    estado = cargar_estado()
+    ahora = ahora_espana()
+    hoy = ahora.date()
+
+    if not es_las_11():
+        return
+
+    # --- Valencia ---
+    valencia_dia = VALENCIA_FECHA.date()
+    valencia_antes = valencia_dia - timedelta(days=1)
+
+    if hoy == valencia_antes and not estado.get("valencia_dia_antes"):
+        enviar_notificacion("📅 Mañana abren inscripciones Valencia 2027")
+        estado["valencia_dia_antes"] = True
+
+    if hoy == valencia_dia and not estado.get("valencia_mismo_dia"):
+        enviar_notificacion("🔥 Hoy abren inscripciones Valencia 2027")
+        estado["valencia_mismo_dia"] = True
+
+    # --- Behobia ---
+    behobia_dia = BEHOBIA_FECHA.date()
+
+    if hoy == behobia_dia and not estado.get("behobia_mismo_dia"):
+        enviar_notificacion("🔥 Hoy abren inscripciones Behobia")
+        estado["behobia_mismo_dia"] = True
+
+    guardar_estado(estado)
 
 def main():
-    estados_anteriores = cargar_estados()
-    nuevos_estados = {}
-
-    for nombre, datos in CARRERAS.items():
-        url = datos["url"]
-        tipo = datos["tipo"]
-
-        texto = obtener_texto(url)
-        estado_anterior = estados_anteriores.get(nombre, {})
-
-        nuevo_estado = {}
-        mensaje = None
-
-        # --- Tipo estado clásico ---
-        if tipo == "estado":
-            estado_actual = detectar_estado(texto)
-            ano_actual = detectar_ano(texto)
-
-            nuevo_estado = {
-                "estado": estado_actual,
-                "ano": ano_actual
-            }
-
-            if estado_anterior:
-                if estado_actual != estado_anterior.get("estado"):
-                    mensaje = f"🔥 {nombre}: ahora las inscripciones están {estado_actual.upper()}"
-
-                elif ano_actual and ano_actual != estado_anterior.get("ano"):
-                    mensaje = f"📅 {nombre}: nueva edición detectada {ano_actual}"
-
-        # --- Tipo aparición de inscripciones ---
-        elif tipo == "inscripciones_aparecen":
-            aparecen = "inscrip" in texto
-
-            nuevo_estado = {
-                "inscripciones": aparecen
-            }
-
-            if estado_anterior:
-                if aparecen and not estado_anterior.get("inscripciones"):
-                    mensaje = f"🚀 {nombre}: ¡ha aparecido el apartado de INSCRIPCIONES!"
-
-        print(f"{nombre}: {nuevo_estado}")
-
-        if mensaje:
-            enviar_notificacion(mensaje)
-
-        nuevos_estados[nombre] = nuevo_estado
-
-    guardar_estados(nuevos_estados)
+    gestionar_fechas()
 
 if __name__ == "__main__":
     main()
