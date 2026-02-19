@@ -113,20 +113,30 @@ def main():
     # Guardamos estado de salud
     nuevos_estados["salud"] = estado_salud
 
-    # 🔹 Generar dashboard
-    with open("STATUS.md", "w", encoding="utf-8") as f:
-        f.write("# 🏃 Estado Medias Maratón\n\n")
-        f.write("## Scraping actual\n\n")
+   from datetime import datetime
 
-        for nombre in CARRERAS.keys():
-            datos = nuevos_estados.get(nombre, {})
-            estado = datos.get("estado", "desconocido")
-            ano = datos.get("ano", "-")
+now = datetime.now().strftime("%d %B %Y - %H:%M")
 
-            if estado == "desconocido":
-                f.write(f"- {nombre} → Sin inscripciones activas\n")
-            else:
-                f.write(f"- {nombre} → {estado.capitalize()} ({ano})\n")
+with open("dashboard.html", "w", encoding="utf-8") as f:
+    f.write("<html><head><title>Estado Medias</title></head><body>")
+    f.write("<h1>Estado Medias Maratón</h1>")
+    f.write("<ul>")
+
+    for nombre in CARRERAS.keys():
+        datos = nuevos_estados.get(nombre, {})
+        estado = datos.get("estado", "desconocido")
+        ano = datos.get("ano", "-")
+
+        if estado == "desconocido":
+            texto_estado = "Sin inscripciones"
+        else:
+            texto_estado = estado.capitalize()
+
+        f.write(f"<li>{nombre} → {texto_estado} ({ano})</li>")
+
+    f.write("</ul>")
+    f.write(f"<p>Última actualización: {now}</p>")
+    f.write("</body></html>")
 
     guardar_estados(nuevos_estados)
 
