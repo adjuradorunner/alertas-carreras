@@ -114,30 +114,32 @@ def main():
     # Guardamos estado de salud
     nuevos_estados["salud"] = estado_salud
 
-now = datetime.now().strftime("%d %B %Y - %H:%M")
+    # -------- Generar dashboard.html --------
+    now = datetime.now().strftime("%d %B %Y - %H:%M")
 
-with open("dashboard.html", "w", encoding="utf-8") as f:
-    f.write("<html><head><title>Estado Medias</title></head><body>")
-    f.write("<h1>Estado Medias Maratón</h1>")
-    f.write("<ul>")
+    with open("dashboard.html", "w", encoding="utf-8") as f:
+        f.write("<html><head><title>Estado Medias</title></head><body>")
+        f.write("<h1>Estado Medias Maratón</h1>")
+        f.write("<ul>")
 
-    for nombre in CARRERAS.keys():
-        datos = nuevos_estados.get(nombre, {})
-        estado = datos.get("estado", "desconocido")
-        ano = datos.get("ano", "-")
+        for nombre in CARRERAS.keys():
+            datos = nuevos_estados.get(nombre, {})
+            estado = datos.get("estado", "desconocido")
+            ano = datos.get("ano", "-")
 
-        if estado == "desconocido":
-            texto_estado = "Sin inscripciones"
-        else:
-            texto_estado = estado.capitalize()
+            if estado == "desconocido":
+                texto_estado = "Sin inscripciones"
+            else:
+                texto_estado = estado.capitalize()
 
-        f.write(f"<li>{nombre} → {texto_estado} ({ano})</li>")
+            f.write(f"<li>{nombre} → {texto_estado} ({ano})</li>")
 
-    f.write("</ul>")
-    f.write(f"<p>Última actualización: {now}</p>")
-    f.write("</body></html>")
+        f.write("</ul>")
+        f.write(f"<p>Última actualización: {now}</p>")
+        f.write("</body></html>")
 
     guardar_estados(nuevos_estados)
+
 
 if __name__ == "__main__":
     main()
