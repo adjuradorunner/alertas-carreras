@@ -30,9 +30,20 @@ def enviar_notificacion(mensaje):
 def obtener_texto(url):
     try:
         response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            enviar_notificacion(f"⚠️ Error HTTP {response.status_code} en {url}")
+            return ""
+
         soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text().lower()
-    except:
+        texto = soup.get_text().lower()
+
+        if len(texto) < 500:
+            enviar_notificacion(f"⚠️ Posible cambio de estructura en {url}")
+
+        return texto
+
+    except Exception as e:
+        enviar_notificacion(f"❌ Error conexión en {url}: {e}")
         return ""
 
 def detectar_estado(texto):
