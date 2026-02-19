@@ -26,3 +26,11 @@ jobs:
           PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
           PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
         run: python check_scraping.py
+
+      - name: Commit and push STATUS.md
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add STATUS.md
+          git commit -m "Update STATUS dashboard" || echo "No changes"
+          git push
