@@ -27,10 +27,11 @@ jobs:
           PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
         run: python check_fechas.py
 
-      - name: Commit and push STATUS.md
+      - name: Commit and push dashboard
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add STATUS.md
-          git commit -m "Update STATUS fechas" || echo "No changes"
+          git add dashboard.html
+          git commit -m "Update dashboard fechas" || echo "No changes"
+          git pull --rebase
           git push
