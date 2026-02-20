@@ -31,7 +31,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add dashboard.html
+          git add .
           git commit -m "Update dashboard fechas" || echo "No changes"
           git pull --rebase
           git push
